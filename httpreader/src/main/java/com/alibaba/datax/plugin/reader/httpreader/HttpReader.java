@@ -85,8 +85,18 @@ public class HttpReader extends Reader {
                 for (Configuration eachColumnConf : columns) {
                     eachColumnConf.getNecessaryValue(Key.TYPE,
                             HttpReaderErrorCode.REQUIRED_VALUE);
-                    eachColumnConf.getNecessaryValue(Key.NAME,
-                            HttpReaderErrorCode.REQUIRED_VALUE);
+                    String columnName = eachColumnConf.getString(Key.NAME);
+                    String columnValue = eachColumnConf.getString(Key.VALUE);
+                    if (StringUtils.isBlank(columnName) && StringUtils.isBlank( columnValue)) {
+                        throw DataXException.asDataXException(
+                                HttpReaderErrorCode.NO_NAME_VALUE,
+                                "您明确的配置列信息,但未填写相应的name,value");
+                    }
+                    if (StringUtils.isNotBlank(columnName) && StringUtils.isNotBlank(columnValue)) {
+                        throw DataXException.asDataXException(
+                                HttpReaderErrorCode.MIXED_NAME_VALUE,
+                                "您混合配置了name, value, 每一列同时仅能选择其中一种");
+                    }
                 }
             }
         }
@@ -195,21 +205,42 @@ public class HttpReader extends Reader {
             for (Configuration eachColumnConf : columns) {
                 String columnType = eachColumnConf.getString(Key.TYPE);
                 String columnName = eachColumnConf.getString(Key.NAME);
+                String columnValue = eachColumnConf.getString(Key.VALUE);
                 if ("string".equalsIgnoreCase(columnType)) {
-                    String val = JsonPath.read(sub, columnName);
-                    record.addColumn(new StringColumn(val));
+                    if (StringUtils.isBlank(columnValue)) {
+                        String val = JsonPath.read(sub, columnName);
+                        record.addColumn(new StringColumn(val));
+                    } else {
+                        record.addColumn(new StringColumn(columnValue));
+                    }
                 } else if ("boolean".equalsIgnoreCase(columnType)) {
-                    Boolean val = JsonPath.read(sub, columnName);
-                    record.addColumn(new BoolColumn(val));
+                    if (StringUtils.isBlank(columnValue)) {
+                        Boolean val = JsonPath.read(sub, columnName);
+                        record.addColumn(new BoolColumn(val));
+                    } else {
+                        record.addColumn(new BoolColumn(columnValue));
+                    }
                 } else if ("integer".equalsIgnoreCase(columnType)) {
-                    Integer val = JsonPath.read(sub, columnName);
-                    record.addColumn(new LongColumn(val));
+                    if (StringUtils.isBlank(columnValue)) {
+                        Integer val = JsonPath.read(sub, columnName);
+                        record.addColumn(new LongColumn(val));
+                    } else {
+                        record.addColumn(new LongColumn(columnValue));
+                    }
                 } else if ("long".equalsIgnoreCase(columnType)) {
-                    Long val = JsonPath.read(sub, columnName);
-                    record.addColumn(new LongColumn(val));
+                    if (StringUtils.isBlank(columnValue)) {
+                        Long val = JsonPath.read(sub, columnName);
+                        record.addColumn(new LongColumn(val));
+                    } else {
+                        record.addColumn(new LongColumn(columnValue));
+                    }
                 } else if ("double".equalsIgnoreCase(columnType)) {
-                    Double val = JsonPath.read(sub, columnName);
-                    record.addColumn(new DoubleColumn(val));
+                    if (StringUtils.isBlank(columnValue)) {
+                        Double val = JsonPath.read(sub, columnName);
+                        record.addColumn(new DoubleColumn(val));
+                    } else {
+                        record.addColumn(new DoubleColumn(columnValue));
+                    }
                 } else if ("date".equalsIgnoreCase(columnType)) {
                     String columnFormat = eachColumnConf.getString(Key.FORMAT);
                     if (StringUtils.isBlank(columnFormat)) {
@@ -217,8 +248,10 @@ public class HttpReader extends Reader {
                         record.addColumn(new DateColumn(val));
                     } else {
                         try {
-                            String day = JsonPath.read(sub, columnName);
-                            Date date = DateUtils.parseDate(day, columnFormat);
+                            if (StringUtils.isBlank(columnValue)) {
+                                columnValue = JsonPath.read(sub, columnName);
+                            }
+                            Date date = DateUtils.parseDate(columnValue, columnFormat);
                             record.addColumn(new DateColumn(date));
                         } catch (ParseException e) {
                             LOG.error("格式：" + columnFormat, e);
