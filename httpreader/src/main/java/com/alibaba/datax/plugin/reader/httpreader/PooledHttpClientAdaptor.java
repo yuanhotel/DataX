@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class PooledHttpClientAdaptor {
+    private static final String DEFAULT_CHARSET = "UTF-8";
     private static final int DEFAULT_POOL_MAX_TOTAL = 200;
     private static final int DEFAULT_POOL_MAX_PER_ROUTE = 200;
 
@@ -39,6 +40,7 @@ public class PooledHttpClientAdaptor {
     private static final int DEFAULT_CONNECT_REQUEST_TIMEOUT = 500;
     private static final int DEFAULT_SOCKET_TIMEOUT = 2000;
 
+    private String charset = null;
     private PoolingHttpClientConnectionManager gcm = null;
 
     private CloseableHttpClient httpClient = null;
@@ -58,7 +60,12 @@ public class PooledHttpClientAdaptor {
     private final int socketTimeout;
 
     public PooledHttpClientAdaptor() {
+        this(PooledHttpClientAdaptor.DEFAULT_CHARSET);
+    }
+
+    public PooledHttpClientAdaptor(String charset) {
         this(
+                charset,
                 PooledHttpClientAdaptor.DEFAULT_POOL_MAX_TOTAL,
                 PooledHttpClientAdaptor.DEFAULT_POOL_MAX_PER_ROUTE,
                 PooledHttpClientAdaptor.DEFAULT_CONNECT_TIMEOUT,
@@ -68,13 +75,14 @@ public class PooledHttpClientAdaptor {
     }
 
     public PooledHttpClientAdaptor(
+            String charset,
             int maxTotal,
             int maxPerRoute,
             int connectTimeout,
             int connectRequestTimeout,
             int socketTimeout
     ) {
-
+        this.charset =charset;
         this.maxTotal = maxTotal;
         this.maxPerRoute = maxPerRoute;
         this.connectTimeout = connectTimeout;
@@ -142,7 +150,7 @@ public class PooledHttpClientAdaptor {
             if ( statusCode == HttpStatus.SC_OK ) {
                 HttpEntity entityRes = response.getEntity();
                 if (entityRes != null) {
-                    return EntityUtils.toString(entityRes, "UTF-8");
+                    return EntityUtils.toString(entityRes, charset);
                 }
             }
             return null;
@@ -194,7 +202,7 @@ public class PooledHttpClientAdaptor {
             if ( statusCode == HttpStatus.SC_OK ) {
                 HttpEntity entityRes = response.getEntity();
                 if ( entityRes != null ) {
-                    return EntityUtils.toString(entityRes, "UTF-8");
+                    return EntityUtils.toString(entityRes, charset);
                 }
             }
             return null;
@@ -218,7 +226,7 @@ public class PooledHttpClientAdaptor {
                     .getValue().toString());
             pairList.add(pair);
         }
-        return new UrlEncodedFormEntity(pairList, Charset.forName("UTF-8"));
+        return new UrlEncodedFormEntity(pairList, Charset.forName(charset));
     }
 
     private String getUrlWithParams(String url, Map<String, Object> params) {
@@ -232,7 +240,7 @@ public class PooledHttpClientAdaptor {
             }
             String value = params.get(key).toString();
             try {
-                String sval = URLEncoder.encode(value, "UTF-8");
+                String sval = URLEncoder.encode(value, charset);
                 sb.append(ch).append(key).append("=").append(sval);
             } catch (UnsupportedEncodingException e) {
             }

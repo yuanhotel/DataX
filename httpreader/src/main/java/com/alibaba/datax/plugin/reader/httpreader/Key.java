@@ -6,6 +6,9 @@ package com.alibaba.datax.plugin.reader.httpreader;
 public class Key {
 
 	public static final String URL = "url";
+	public static final String URL_METHOD = "urlMethod";
+	public static final String URL_HEADER = "urlHeader";
+	public static final String URL_PARAM = "urlParam";
 	public static final String ENCODING = "encoding";
 	public final static String COLUMN = "column";
 	public static final String TYPE = "type";

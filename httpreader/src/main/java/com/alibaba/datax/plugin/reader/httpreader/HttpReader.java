@@ -14,9 +14,7 @@ import org.slf4j.LoggerFactory;
 
 import java.nio.charset.UnsupportedCharsetException;
 import java.text.ParseException;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 /**
  * Created by yutel on 2020-4-8 .
@@ -87,7 +85,7 @@ public class HttpReader extends Reader {
                             HttpReaderErrorCode.REQUIRED_VALUE);
                     String columnName = eachColumnConf.getString(Key.NAME);
                     String columnValue = eachColumnConf.getString(Key.VALUE);
-                    if (StringUtils.isBlank(columnName) && StringUtils.isBlank( columnValue)) {
+                    if (StringUtils.isBlank(columnName) && StringUtils.isBlank(columnValue)) {
                         throw DataXException.asDataXException(
                                 HttpReaderErrorCode.NO_NAME_VALUE,
                                 "您明确的配置列信息,但未填写相应的name,value");
@@ -152,6 +150,9 @@ public class HttpReader extends Reader {
         private PooledHttpClientAdaptor httpClientAdaptor = null;
         private Configuration readerSliceConfig;
         private List<String> urls;
+        private String urlMethod;
+        private Map<String, String> urlHeader;
+        private Map<String, Object> urlParam;
         private List<Configuration> columns;
         private String dataPath;
 
@@ -159,9 +160,23 @@ public class HttpReader extends Reader {
         @Override
         public void init() {
             this.readerSliceConfig = this.getPluginJobConf();
-            this.httpClientAdaptor = new PooledHttpClientAdaptor();
+            String encoding = this.readerSliceConfig.getString(Key.ENCODING);
+            if (StringUtils.isBlank(encoding)) {
+                this.httpClientAdaptor = new PooledHttpClientAdaptor();
+            } else {
+                this.httpClientAdaptor = new PooledHttpClientAdaptor(encoding);
+            }
             this.dataPath = this.readerSliceConfig.getString(Key.DATA_PATH, Constant.DEFAULT_DATA_PATH);
             this.urls = this.readerSliceConfig.getList(Constant.URLS, String.class);
+            this.urlMethod = this.readerSliceConfig.getString(Key.URL_METHOD, Constant.DEFAULT_METHOD);
+            this.urlHeader = this.readerSliceConfig.getMap(Key.URL_HEADER, String.class);
+            if (this.urlHeader == null) {
+                this.urlHeader = Collections.EMPTY_MAP;
+            }
+            this.urlParam = this.readerSliceConfig.getMap(Key.URL_PARAM);
+            if (this.urlParam == null) {
+                this.urlParam = Collections.EMPTY_MAP;
+            }
             this.columns = this.readerSliceConfig.getListConfiguration(Key.COLUMN);
         }
 
@@ -184,8 +199,17 @@ public class HttpReader extends Reader {
         public void startRead(RecordSender recordSender) {
             LOG.debug("start request urls...");
             for (String url : this.urls) {
-                LOG.info(String.format("request url : [%s]", url));
-                String jsonString = this.httpClientAdaptor.doGet(url);
+                LOG.info(String.format("request method : [%s] ,url : [%s]", urlMethod, url));
+                String jsonString = null;
+                if ("get".equalsIgnoreCase(this.urlMethod)) {
+                    jsonString = this.httpClientAdaptor.doGet(url, this.urlHeader, this.urlParam);
+                } else {
+                    jsonString = this.httpClientAdaptor.doPost(url, this.urlHeader, this.urlParam);
+                }
+                if (jsonString == null) {
+                    LOG.error("请求响应信息为空，请检查当前的远程地址是否可用");
+                    continue;
+                }
                 Object json = com.jayway.jsonpath.Configuration
                         .defaultConfiguration().jsonProvider().parse(jsonString);
                 Object obj = JsonPath.read(json, dataPath);
@@ -233,6 +257,13 @@ public class HttpReader extends Reader {
                         record.addColumn(new LongColumn(val));
                     } else {
                         record.addColumn(new LongColumn(columnValue));
+                    }
+                } else if ("float".equalsIgnoreCase(columnType)) {
+                    if (StringUtils.isBlank(columnValue)) {
+                        Float val = JsonPath.read(sub, columnName);
+                        record.addColumn(new DoubleColumn(val));
+                    } else {
+                        record.addColumn(new DoubleColumn(columnValue));
                     }
                 } else if ("double".equalsIgnoreCase(columnType)) {
                     if (StringUtils.isBlank(columnValue)) {
