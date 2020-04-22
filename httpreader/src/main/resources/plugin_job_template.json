@@ -1,0 +1,15 @@
+{
+    "name": "httpreader",
+    "parameter": {
+        "encoding": "",
+        "dataPath": "$.data",
+        "column": [
+            {
+                "name": "date",
+                "type": "string"
+            },{
+                "name": "total.confirm",
+                "type": "integer"
+        }]
+    }
+}
